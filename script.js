@@ -39,6 +39,13 @@ class TodoApp {
                 this.addTask();
             }
         });
+
+        // Click outside to remove notifications
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.notification')) {
+                this.removeNotification(e.target.closest('.notification'));
+            }
+        });
     }
 
     addTask() {
@@ -50,6 +57,7 @@ class TodoApp {
         
         if (!text) {
             this.showNotification('Iltimos, vazifa matnini kiriting!', 'error');
+            taskInput.focus();
             return;
         }
 
@@ -70,6 +78,8 @@ class TodoApp {
         
         taskInput.value = '';
         importantCheckbox.checked = false;
+        categorySelect.value = 'general';
+        taskInput.focus();
         
         this.showNotification('Vazifa muvaffaqiyatli qoʻshildi!', 'success');
     }
@@ -86,12 +96,19 @@ class TodoApp {
     }
 
     toggleTask(taskId) {
-        this.tasks = this.tasks.map(task => 
-            task.id === taskId ? { ...task, completed: !task.completed } : task
-        );
-        this.saveToLocalStorage();
-        this.renderTasks();
-        this.updateStats();
+        const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+        if (taskElement) {
+            taskElement.classList.add('completing');
+        }
+
+        setTimeout(() => {
+            this.tasks = this.tasks.map(task => 
+                task.id === taskId ? { ...task, completed: !task.completed } : task
+            );
+            this.saveToLocalStorage();
+            this.renderTasks();
+            this.updateStats();
+        }, 150);
     }
 
     setFilter(filter) {
@@ -104,6 +121,7 @@ class TodoApp {
         document.querySelector(`[data-filter="${filter}"]`).classList.add('active');
         
         this.renderTasks();
+        this.toggleEmptyState();
     }
 
     getFilteredTasks() {
@@ -124,7 +142,8 @@ class TodoApp {
         const filteredTasks = this.getFilteredTasks();
 
         tasksList.innerHTML = filteredTasks.map(task => `
-            <li class="task-item ${task.completed ? 'completed' : ''} ${task.important ? 'important' : ''}">
+            <li class="task-item ${task.completed ? 'completed' : ''} ${task.important ? 'important' : ''}" 
+                data-task-id="${task.id}">
                 <div class="task-checkbox ${task.completed ? 'checked' : ''}" 
                      onclick="todoApp.toggleTask(${task.id})">
                 </div>
@@ -142,7 +161,8 @@ class TodoApp {
                     </div>
                 </div>
                 <div class="task-actions">
-                    <button class="delete-btn" onclick="todoApp.deleteTask(${task.id})">
+                    <button class="delete-btn" onclick="todoApp.deleteTask(${task.id})" 
+                            title="O'chirish">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -163,8 +183,9 @@ class TodoApp {
     toggleEmptyState() {
         const emptyState = document.getElementById('emptyState');
         const tasksList = document.getElementById('tasksList');
+        const filteredTasks = this.getFilteredTasks();
         
-        if (this.getFilteredTasks().length === 0) {
+        if (filteredTasks.length === 0) {
             emptyState.style.display = 'block';
             tasksList.style.display = 'none';
         } else {
@@ -214,7 +235,11 @@ class TodoApp {
     }
 
     showNotification(message, type = 'info') {
-        // Create notification element
+        // Remove existing notifications
+        document.querySelectorAll('.notification').forEach(notification => {
+            this.removeNotification(notification);
+        });
+
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
         notification.innerHTML = `
@@ -224,37 +249,26 @@ class TodoApp {
             </div>
         `;
 
-        // Add styles
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: ${this.getNotificationColor(type)};
-            color: white;
-            padding: 15px 20px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            z-index: 1000;
-            transform: translateX(400px);
-            transition: transform 0.3s ease;
-        `;
-
         document.body.appendChild(notification);
 
-        // Animate in
         setTimeout(() => {
             notification.style.transform = 'translateX(0)';
         }, 100);
 
-        // Remove after 3 seconds
         setTimeout(() => {
+            this.removeNotification(notification);
+        }, 3000);
+    }
+
+    removeNotification(notification) {
+        if (notification && notification.parentNode) {
             notification.style.transform = 'translateX(400px)';
             setTimeout(() => {
                 if (notification.parentNode) {
                     notification.parentNode.removeChild(notification);
                 }
             }, 300);
-        }, 3000);
+        }
     }
 
     getNotificationIcon(type) {
@@ -266,16 +280,6 @@ class TodoApp {
         return icons[type] || 'info-circle';
     }
 
-    getNotificationColor(type) {
-        const colors = {
-            'success': '#10B981',
-            'error': '#EF4444',
-            'info': '#6366F1'
-        };
-        return colors[type] || '#6366F1';
-    }
-
-    // Qo'shimcha funksiyalar
     clearCompleted() {
         const completedCount = this.tasks.filter(task => task.completed).length;
         
@@ -294,18 +298,17 @@ class TodoApp {
         }
     }
 
-    searchTasks(searchTerm) {
-        // Search funksiyasini qo'shish mumkin
-        const filtered = this.tasks.filter(task => 
-            task.text.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-        return filtered;
-    }
-
     exportTasks() {
+        if (this.tasks.length === 0) {
+            this.showNotification('Eksport qilish uchun vazifalar mavjud emas!', 'error');
+            return;
+        }
+
         const data = {
             exportedAt: new Date().toISOString(),
             totalTasks: this.tasks.length,
+            completedTasks: this.tasks.filter(task => task.completed).length,
+            pendingTasks: this.tasks.filter(task => !task.completed).length,
             tasks: this.tasks
         };
 
@@ -317,26 +320,51 @@ class TodoApp {
         const a = document.createElement('a');
         a.href = url;
         a.download = `todo-tasks-${new Date().getTime()}.json`;
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
         
         URL.revokeObjectURL(url);
         this.showNotification('Vazifalar eksport qilindi!', 'success');
     }
+
+    importTasks(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (data.tasks && Array.isArray(data.tasks)) {
+                    this.tasks = data.tasks;
+                    this.saveToLocalStorage();
+                    this.renderTasks();
+                    this.updateStats();
+                    this.toggleEmptyState();
+                    this.showNotification('Vazifalar import qilindi!', 'success');
+                } else {
+                    this.showNotification('Notoʻgʻri fayl formati!', 'error');
+                }
+            } catch (error) {
+                this.showNotification('Faylni oʻqishda xatolik!', 'error');
+            }
+        };
+        reader.readAsText(file);
+    }
 }
 
-// Ilovani ishga tushirish
+
 let todoApp;
 
 document.addEventListener('DOMContentLoaded', () => {
     todoApp = new TodoApp();
     
-    // Qo'shimcha funksiyalar uchun global o'zgaruvchilar
+    // Global qilish
     window.todoApp = todoApp;
     
     // Demo ma'lumotlar (agar bo'sh bo'lsa)
     if (todoApp.tasks.length === 0) {
         setTimeout(() => {
-            if (confirm('Demo vazifalarni qoʻshishni xohlaysizmi?')) {
+            const addDemo = confirm('Demo vazifalarni qoʻshishni xohlaysizmi?');
+            if (addDemo) {
                 todoApp.tasks = [
                     {
                         id: 1,
@@ -361,68 +389,42 @@ document.addEventListener('DOMContentLoaded', () => {
                         important: true,
                         category: 'work',
                         createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+                    },
+                    {
+                        id: 4,
+                        text: 'Doʻstlar bilan uchrashuv',
+                        completed: false,
+                        important: false,
+                        category: 'personal',
+                        createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
                     }
                 ];
                 todoApp.saveToLocalStorage();
                 todoApp.renderTasks();
                 todoApp.updateStats();
                 todoApp.toggleEmptyState();
+                todoApp.showNotification('Demo vazifalar qoʻshildi!', 'success');
             }
         }, 1000);
     }
 });
 
-// Qo'shimcha CSS for notifications
-const style = document.createElement('style');
-style.textContent = `
-    .notification {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+const fileInput = document.createElement('input');
+fileInput.type = 'file';
+fileInput.accept = '.json';
+fileInput.style.display = 'none';
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files[0]) {
+        todoApp.importTasks(e.target.files[0]);
     }
-    
-    .notification-content {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
-    .notification.success {
-        background: #10B981 !important;
-    }
-    
-    .notification.error {
-        background: #EF4444 !important;
-    }
-    
-    .notification.info {
-        background: #6366F1 !important;
-    }
-    
-    .task-category {
-        font-size: 0.7rem;
-        padding: 2px 8px;
-        border-radius: 12px;
-        background: #F3F4F6;
-        color: #6B7280;
-    }
-    
-    .task-category.work {
-        background: #DBEAFE;
-        color: #1E40AF;
-    }
-    
-    .task-category.personal {
-        background: #FCE7F3;
-        color: #BE185D;
-    }
-    
-    .task-category.shopping {
-        background: #D1FAE5;
-        color: #065F46;
-    }
-    
-    .task-time {
-        font-size: 0.7rem;
-        color: #9CA3AF;
-    }
+});
+document.body.appendChild(fileInput);
+
+
+document.querySelector('.controls').innerHTML += `
+    <button class="control-btn" onclick="fileInput.click()">
+        <i class="fas fa-upload"></i>
+        Import
+    </button>
 `;
-document.head.appendChild(style);
