@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TodoApp - Your Task Manager</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <h1 class="logo">
+                    
+                    TodoApp
+                </h1>
+                <div class="date-display" id="currentDate"></div>
+            </div>
+        </header>
+
+
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-number" id="totalTasks">0</div>
+                <div class="stat-label">Jami</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="completedTasks">0</div>
+                <div class="stat-label">Bajarildi</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="pendingTasks">0</div>
+                <div class="stat-label">Kutilmoqda</div>
+            </div>
+        </div>
+
+
+        <div class="add-task-section">
+            <form class="task-form" id="taskForm">
+                <div class="input-group">
+                    <input type="text" 
+                           id="taskInput" 
+                           placeholder="Yangi vazifa qo'shing..." 
+                           class="task-input">
+                    <button type="submit" class="add-btn">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <div class="task-options">
+                    <label class="priority-label">
+                        <input type="checkbox" id="importantCheckbox">
+                        <span class="custom-checkbox"></span>
+                        Muhim
+                    </label>
+                    <select id="categorySelect" class="category-select">
+                        <option value="general">Umumiy</option>
+                        <option value="work">Ish</option>
+                        <option value="personal">Shaxsiy</option>
+                        <option value="shopping">Sotib olish</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+
+        <div class="filter-section">
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-filter="all">Hammasi</button>
+                <button class="filter-btn" data-filter="pending">Kutilmoqda</button>
+                <button class="filter-btn" data-filter="completed">Bajarildi</button>
+                <button class="filter-btn" data-filter="important">Muhim</button>
+            </div>
+        </div>
+
+
+        <div class="tasks-container">
+            <ul class="tasks-list" id="tasksList">
+            </ul>
+        </div>
+
+        <div class="empty-state" id="emptyState">
+            <i class="fas fa-clipboard-list"></i>
+            <h3>Hozircha vazifalar yo'q</h3>
+            <p>Birinchi vazifangizni qo'shing va unumdor kunni boshlang!</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
